@@ -1,0 +1,28 @@
+# Environments & Credentials
+*.env
+*.env.*
+!.env.example
+config.json
+*.token
+
+# Python Cache & Virtualenvs
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+env/
+venv/
+
+# Runtime Data & Storage
+data/
+*.log
+telemetry.json
+*.tmp
+*.db
+*.sqlite
+
+# System & IDE
+.DS_Store
+.idea/
+.vscode/

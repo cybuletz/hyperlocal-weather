@@ -1,0 +1,24 @@
+{
+  "location": {
+    "latitude": 44.4268,
+    "longitude": 26.1025,
+    "elevation_m": 85,
+    "timezone": "Europe/Bucharest"
+  },
+  "entities": {
+    "relative_pressure": "sensor.weather_station_relative_pressure",
+    "absolute_pressure": "sensor.weather_station_absolute_pressure",
+    "outdoor_temperature": "sensor.weather_station_outdoor_temperature",
+    "outdoor_humidity": "sensor.weather_station_humidity",
+    "dewpoint": "sensor.weather_station_dewpoint",
+    "solar_radiation": "sensor.weather_station_solar_radiation",
+    "solar_lux": "sensor.weather_station_solar_lux",
+    "uv_index": "sensor.weather_station_uv_index",
+    "wind_speed": "sensor.weather_station_wind_speed",
+    "wind_gust": "sensor.weather_station_wind_gust",
+    "wind_direction": "sensor.weather_station_wind_direction",
+    "rain_rate": "sensor.weather_station_rain_rate",
+    "daily_rain": "sensor.weather_station_daily_rain",
+    "vpd": "sensor.weather_station_vapour_pressure_deficit"
+  }
+}

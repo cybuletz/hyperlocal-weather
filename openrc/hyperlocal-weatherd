@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+name="hyperlocal-weatherd"
+description="HyperLocal Weather Physics and AI Resonance Daemon"
+command="/usr/bin/python3"
+command_args="/opt/hyperlocal-weather/main.py"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/hyperlocal-weatherd.log"
+error_log="/var/log/hyperlocal-weatherd.err"
+
+depend() {
+    need net
+    after firewall
+}

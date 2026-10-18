@@ -1,0 +1,12 @@
+services:
+  hyperlocal-weather:
+    build: .
+    container_name: hyperlocal-weather
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./data:/app/data
+    ports:
+      - "${WEB_PORT:-8080}:8080"
