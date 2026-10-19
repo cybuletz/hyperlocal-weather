@@ -176,7 +176,17 @@ All entities are automatically registered under MQTT discovery with no manual YA
 ## 🔒 Security & Privacy by Design
 
 * **Zero Cloud Lock-in:** 100% of telemetry calculations and AI synthesis execute locally on your hardware.
-* **Strict Secret Isolation:** `.gitignore` blocks `.env`, `config.json`, and database state files. All code references environment variables with sanitized fallbacks.
+* **Strict Secret Isolation:** `.gitignore` blocks `.env`, `config.json`, `.htpasswd`, and database state files. All code references environment variables with sanitized fallbacks.
+* **Built-in HTTP Basic Authentication:** Protects the web UI and `/api/telemetry.json` behind a secure password prompt. Generate credentials using:
+  ```bash
+  apk add --no-cache apache2-utils  # or: apt-get install -y apache2-utils
+  htpasswd -bc /etc/nginx/.htpasswd admin <your-secure-password>
+  ```
+* **Multi-Layer Anti-Indexing:** Designed for private sharing via Cloudflare Tunnels without being indexed by Google, Bing, or web bots:
+  - Meta tags: `<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">`
+  - Nginx response headers: `add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;`
+  - Standard `robots.txt` denying all crawlers (`Disallow: /`).
+  - Web root password protection returning `401 Unauthorized` to any unauthorized automated crawler.
 
 ---
 
