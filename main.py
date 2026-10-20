@@ -24,14 +24,9 @@ from sky_vision import SkyVisionAnalyzer
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("hyperlocal.main")
 
-def load_env(env_path=None):
+def load_env(env_path="/opt/hyperlocal-weather/.env"):
     import os
-    if not env_path:
-        for p in [os.environ.get("ENV_FILE"), ".env", "/opt/hyperlocal-weather/.env"]:
-            if p and os.path.exists(p):
-                env_path = p
-                break
-    if env_path and os.path.exists(env_path):
+    if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -43,19 +38,19 @@ def load_config():
     import os
     load_env()
     cfg = {}
-    config_path = os.environ.get("CONFIG_PATH", "config.json" if os.path.exists("config.json") else "/opt/hyperlocal-weather/config.json")
+    config_path = "/opt/hyperlocal-weather/config.json"
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
 
     if "homeassistant" not in cfg:
         cfg["homeassistant"] = {}
-    cfg["homeassistant"]["url"] = os.environ.get("HA_URL", cfg["homeassistant"].get("url", "http://homeassistant.local:8123"))
+    cfg["homeassistant"]["url"] = os.environ.get("HA_URL", cfg["homeassistant"].get("url", "http://192.168.0.4:8123"))
     cfg["homeassistant"]["token"] = os.environ.get("HA_TOKEN", cfg["homeassistant"].get("token", ""))
 
     if "mqtt" not in cfg:
         cfg["mqtt"] = {}
-    cfg["mqtt"]["host"] = os.environ.get("MQTT_HOST", cfg["mqtt"].get("host", "homeassistant.local"))
+    cfg["mqtt"]["host"] = os.environ.get("MQTT_HOST", cfg["mqtt"].get("host", "192.168.0.4"))
     cfg["mqtt"]["port"] = int(os.environ.get("MQTT_PORT", cfg["mqtt"].get("port", 1883)))
     cfg["mqtt"]["username"] = os.environ.get("MQTT_USERNAME", cfg["mqtt"].get("username", ""))
     cfg["mqtt"]["password"] = os.environ.get("MQTT_PASSWORD", cfg["mqtt"].get("password", ""))
@@ -64,12 +59,12 @@ def load_config():
 
     if "ollama" not in cfg:
         cfg["ollama"] = {}
-    cfg["ollama"]["url"] = os.environ.get("OLLAMA_URL", cfg["ollama"].get("url", "http://localhost:11434"))
+    cfg["ollama"]["url"] = os.environ.get("OLLAMA_URL", cfg["ollama"].get("url", "http://192.168.0.223:11434"))
     cfg["ollama"]["model"] = os.environ.get("OLLAMA_MODEL", cfg["ollama"].get("model", "llama3.2:1b"))
 
     if "frigate" not in cfg:
         cfg["frigate"] = {}
-    cfg["frigate"]["url"] = os.environ.get("FRIGATE_URL", cfg["frigate"].get("url", "http://homeassistant.local5:5000"))
+    cfg["frigate"]["url"] = os.environ.get("FRIGATE_URL", cfg["frigate"].get("url", "http://192.168.0.45:5000"))
 
     return cfg
 
@@ -121,7 +116,7 @@ def main():
     ha_cfg = config["homeassistant"]
     ha_url = ha_cfg["url"]
     ha_token = ha_cfg["token"]
-    notifier = WeatherNotifier(ha_url, ha_token)
+    notifier = WeatherNotifier(ha_url, ha_token, timezone_str=loc.get("timezone", "Europe/Bucharest"))
     sky_analyzer = SkyVisionAnalyzer()
     
     entity_map = config["entities"]
@@ -129,7 +124,7 @@ def main():
         entity_map["feels_like"] = "sensor.hp2551ae_pro_v2_0_0_feels_like_temperature"
 
     ollama_cfg = config.get("ollama", {})
-    ollama_url = ollama_cfg.get("url", "http://localhost:11434")
+    ollama_url = ollama_cfg.get("url", "http://192.168.0.223:11434")
     ollama_model = ollama_cfg.get("model", "llama3.2:1b")
 
     pressure_history = []
@@ -145,7 +140,7 @@ def main():
         "contrast_std": 30.0,
         "is_night": False,
         "fog_detected": False,
-        "primary_camera": "outside_sky_cam"
+        "primary_camera": "outside_fata_dreapta"
     }
     ai_state = {
         "human_summary": "Calm conditions outside. Microclimate telemetry fully synchronized.",
@@ -300,7 +295,7 @@ def main():
         # Optical Sky Camera Sensors
         publisher.publish_sensor("sky_camera_cloud_cover", sky_res.get("cloud_cover_pct", 0.0), sky_res)
         publisher.publish_sensor("sky_camera_condition", sky_res.get("condition", "Unknown"))
-        publisher.publish_binary_sensor("visual_fog_alert", sky_res.get("fog_detected", False), {"camera": sky_res.get("primary_camera", "outside_sky_cam")})
+        publisher.publish_binary_sensor("visual_fog_alert", sky_res.get("fog_detected", False), {"camera": sky_res.get("primary_camera", "outside_fata_dreapta")})
 
         # Publish punchy badge as state and full details as attributes
         radar_badge = radar_nowcast.get("badge", radar_nowcast.get("description", "Clear (next 2h)"))
@@ -337,13 +332,9 @@ def main():
                 "ai_state": ai_state,
                 "alerts": alerts
             }
-            telemetry_dir = os.environ.get("TELEMETRY_DIR", "/var/www/weather/api" if os.path.exists("/var/www/weather") else "web/api")
-            os.makedirs(telemetry_dir, exist_ok=True)
-            tmp_path = os.path.join(telemetry_dir, "telemetry.json.tmp")
-            final_path = os.path.join(telemetry_dir, "telemetry.json")
-            with open(tmp_path, "w") as f:
+            with open("/var/www/weather/api/telemetry.json.tmp", "w") as f:
                 json.dump(web_data, f, indent=2)
-            os.replace(tmp_path, final_path)
+            os.replace("/var/www/weather/api/telemetry.json.tmp", "/var/www/weather/api/telemetry.json")
         except Exception as e:
             logger.debug(f"Error saving web telemetry: {e}")
 

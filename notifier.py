@@ -3,14 +3,23 @@ import json
 import logging
 import urllib.request
 from datetime import datetime
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None
 
 logger = logging.getLogger("HyperLocalNotifier")
 
 class WeatherNotifier:
-    def __init__(self, ha_url: str, ha_token: str, state_file: str = "/opt/hyperlocal-weather/data/notifier_state.json"):
+    def __init__(self, ha_url: str, ha_token: str, state_file: str = "/opt/hyperlocal-weather/data/notifier_state.json", timezone_str: str = "Europe/Bucharest"):
         self.ha_url = ha_url.rstrip("/")
         self.ha_token = ha_token
         self.state_file = state_file
+        self.timezone_str = timezone_str
+        try:
+            self.tz = ZoneInfo(timezone_str) if ZoneInfo else None
+        except Exception:
+            self.tz = None
         self.state = {
             "last_morning_date": "",
             "last_rain_alert": 0,
@@ -55,7 +64,7 @@ class WeatherNotifier:
 
     def check_and_dispatch(self, telemetry: dict, ai_state: dict, radar_nowcast: dict, alerts: dict, cached_forecast: list):
         now_ts = time.time()
-        now_dt = datetime.now()
+        now_dt = datetime.now(self.tz) if self.tz else datetime.now()
         today_str = now_dt.strftime("%Y-%m-%d")
 
         t_out = telemetry.get("outdoor_temperature")
@@ -63,7 +72,8 @@ class WeatherNotifier:
         rain_rate = telemetry.get("rain_rate") or 0.0
 
         # 1. Scheduled Morning Weekday Briefing at 08:00 (Mon=0 .. Fri=4)
-        if now_dt.weekday() < 5 and now_dt.hour == 8 and now_dt.minute == 0:
+        # Fires on the first cycle at or after 08:00 AM local time
+        if now_dt.weekday() < 5 and now_dt.hour >= 8:
             if self.state.get("last_morning_date") != today_str:
                 afternoon_max = t_out or 15.0
                 if cached_forecast:
@@ -80,10 +90,8 @@ class WeatherNotifier:
                     f"🏡 Living Tip: {ai_state.get('smart_home_tip', 'Check ventilation.')}"
                 )
 
-                # Send mobile push notification
-                target = os.environ.get("HA_NOTIFY_SERVICE", "notify.notify")
-                domain, svc = target.split(".", 1) if "." in target else ("notify", target)
-                self.send_ha_service(domain, svc, {
+                # Send to Xiaomi 15
+                self.send_ha_service("notify", "mobile_app_xiaomi15", {
                     "title": "☀️ Morning Weather Concierge",
                     "message": msg,
                     "data": {
@@ -101,7 +109,7 @@ class WeatherNotifier:
 
                 self.state["last_morning_date"] = today_str
                 self.save_state()
-                logger.info("Dispatched Weekday 8:00 AM Morning Briefing from Proxmox CT 123.")
+                logger.info(f"Dispatched Weekday Morning Briefing at {now_dt.strftime('%H:%M:%S')} local time from Proxmox CT 123.")
 
         # 2. Imminent Rain Alert (Approaching radar within 15-45m, not raining yet)
         if radar_nowcast.get("status") == "approaching" and rain_rate <= 0.1:
@@ -113,9 +121,7 @@ class WeatherNotifier:
                 title = f"🌧️ Rain Approaching in ~{eta_min} min"
                 msg = f"{desc}\n\n☂️ Umbrella: {umbrella}\n💡 Advice: Close roof windows and check outdoor spaces."
 
-                target = os.environ.get("HA_NOTIFY_SERVICE", "notify.notify")
-                domain, svc = target.split(".", 1) if "." in target else ("notify", target)
-                self.send_ha_service(domain, svc, {
+                self.send_ha_service("notify", "mobile_app_xiaomi15", {
                     "title": title,
                     "message": msg,
                     "data": {
@@ -146,9 +152,7 @@ class WeatherNotifier:
                     f"⚠️ Recommendation: Secure patio furniture, awnings, and loose outdoor items."
                 )
 
-                target = os.environ.get("HA_NOTIFY_SERVICE", "notify.notify")
-                domain, svc = target.split(".", 1) if "." in target else ("notify", target)
-                self.send_ha_service(domain, svc, {
+                self.send_ha_service("notify", "mobile_app_xiaomi15", {
                     "title": title,
                     "message": msg,
                     "data": {
@@ -179,9 +183,7 @@ class WeatherNotifier:
                     f"🌱 Protect frost-sensitive plants and outdoor water taps."
                 )
 
-                target = os.environ.get("HA_NOTIFY_SERVICE", "notify.notify")
-                domain, svc = target.split(".", 1) if "." in target else ("notify", target)
-                self.send_ha_service(domain, svc, {
+                self.send_ha_service("notify", "mobile_app_xiaomi15", {
                     "title": title,
                     "message": msg,
                     "data": {
